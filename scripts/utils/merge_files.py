@@ -18,4 +18,4 @@ for file in os.listdir(dir):
 df_merged = pd.concat(dfs, ignore_index=True)
 
 # Save the merged dataframe to a new Excel file 
-df_merged.to_excel('../data/merged/merged_files.xlsx', index=False)
+df_merged.to_excel('data/merged/merged_files.xlsx', index=False)
