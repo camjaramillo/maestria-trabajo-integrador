@@ -1,0 +1,77 @@
+---
+title: "Visualizaciones - Influencia de la Generación Solar en la Formación del Precio Spot: Un Modelo Predictivo Aplicado al Mercado Eléctrico Colombiano"
+author:
+  - Camilo Andrés Jaramillo - 2402218
+output:
+  html_document:
+    toc: true  # Genera la tabla de contenidos
+    toc_float: true  # Hace que la TOC flote a la izquierda
+    fig_caption: true
+date: "`r Sys.Date()`"
+---
+
+**Universidad del Valle**
+
+**Maestría en Analítica e Inteligencia de Negocios**
+
+**Trabajo Integrador**
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Librerías
+library(readxl)
+library(tidyverse)
+library(gridExtra)
+library(dplyr)
+library(reshape2)
+library(grid)
+library(kableExtra) 
+library(ggplot2)
+library(forecast)
+```
+
+## Introducción
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+df <- read.csv("../../data/out/dataset_gen_spot_exog.csv")
+
+# Convert FECHA_HORA to timestamp (POSIXct)
+df$FECHA_HORA <- as.POSIXct(df$FECHA_HORA, format = "%Y-%m-%d %H:%M:%S")
+
+# Convert FECHA to date (Date)
+df$FECHA <- as.Date(df$FECHA, format = "%Y-%m-%d")
+
+# Datos
+print("Dataset structure: ")
+str(df)
+```
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+# Contexto histórico de la serie
+
+min_date <- min(df$FECHA)
+max_date    <- max(df$FECHA)
+n_obs        <- nrow(df)
+
+cat(sprintf("Datos de generación de energía en Colombia desde %s hasta %s con %d observaciones.\n",
+  format(min_date, "%Y-%m-%d"),
+  format(max_date, "%Y-%m-%d"),
+  n_obs)
+)
+```
+
+### Detección de valores faltantes
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+# Detección de valores faltantes
+
+# Identificar cuántos y en qué días hay NA (si hay)
+
+total_nan_vals = colSums(is.na(df))
+
+cat("Total datos faltantes: ", sum(is.na(df)))
+cat("Datos faltantes por columna:\n", 
+    paste(capture.output(total_nan_vals), collapse = "\n"))
+
+```
