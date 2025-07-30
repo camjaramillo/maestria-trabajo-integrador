@@ -1,5 +1,5 @@
 ---
-title: "Visualizaciones - Influencia de la Generación Solar en la Formación del Precio Spot: Un Modelo Predictivo Aplicado al Mercado Eléctrico Colombiano"
+title: "EDA - Influencia de la Generación Solar en la Formación del Precio Spot: Un Modelo Predictivo Aplicado al Mercado Eléctrico Colombiano"
 author:
   - Camilo Andrés Jaramillo - 2402218
 output:
@@ -17,21 +17,33 @@ date: "`r Sys.Date()`"
 **Trabajo Integrador**
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 
 # Librerías
 library(readxl)
+library(ggplot2)
 library(tidyverse)
 library(gridExtra)
 library(dplyr)
+library(lubridate)
 library(reshape2)
 library(grid)
 library(kableExtra) 
-library(ggplot2)
+library(corrplot)
+library(ggcorrplot)
 library(forecast)
+library(scales)
+
+library(skimr)        # resúmenes rápidos
+library(DataExplorer) # exploración automática
+library(GGally)       # pairs/correlaciones
+library(knitr)
 ```
 
-## Introducción
+
+## Descripción del conjunto de datos
+
+### Estructura
 
 ```{r, warning=FALSE, message=FALSE, echo=FALSE}
 df <- read.csv("../../data/out/dataset_gen_spot_exog.csv")
@@ -42,23 +54,21 @@ df$FECHA_HORA <- as.POSIXct(df$FECHA_HORA, format = "%Y-%m-%d %H:%M:%S")
 # Convert FECHA to date (Date)
 df$FECHA <- as.Date(df$FECHA, format = "%Y-%m-%d")
 
+
+#Convertir fechas y agregar columnas útiles
+df <- df %>%
+  mutate(
+    MES = month(FECHA_HORA, label = TRUE),
+    DIA = day(FECHA_HORA),
+    HORA = hour(FECHA_HORA),
+    DIA_SEMANA = wday(FECHA_HORA, label = TRUE, abbr = FALSE)
+  )
+
 # Datos
-print("Dataset structure: ")
-str(df)
-```
+cat("Dataset structure: ")
 
-```{r, warning=FALSE, message=FALSE, echo=FALSE}
-# Contexto histórico de la serie
-
-min_date <- min(df$FECHA)
-max_date    <- max(df$FECHA)
-n_obs        <- nrow(df)
-
-cat(sprintf("Datos de generación de energía en Colombia desde %s hasta %s con %d observaciones.\n",
-  format(min_date, "%Y-%m-%d"),
-  format(max_date, "%Y-%m-%d"),
-  n_obs)
-)
+glimpse(df)           # tipos y primeras muestras
+skim(df)              # resumen estadístico rápido
 ```
 
 ### Detección de valores faltantes
@@ -73,5 +83,930 @@ total_nan_vals = colSums(is.na(df))
 cat("Total datos faltantes: ", sum(is.na(df)))
 cat("Datos faltantes por columna:\n", 
     paste(capture.output(total_nan_vals), collapse = "\n"))
+
+```
+
+No se detectaron valores faltantes en el conjunto de datos.
+
+### Contexto histórico de la serie
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+min_date <- min(df$FECHA)
+max_date    <- max(df$FECHA)
+n_obs        <- nrow(df)
+
+cat(sprintf("Datos de generación de energía en Colombia desde %s hasta %s con %d observaciones.\n",
+  format(min_date, "%Y-%m-%d"),
+  format(max_date, "%Y-%m-%d"),
+  n_obs)
+)
+```
+
+### Verificación de consistencia temporal
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+# Comprobar que no falten días en la secuencia
+all_dates <- tibble(FECHA = seq(min(df$FECHA), max(df$FECHA), by = "day"))
+
+missing_days <- anti_join(all_dates, df, by = "FECHA")
+
+cat(paste("Días faltantes en la secuencia:", nrow(missing_days)))
+
+if(nrow(missing_days) > 0) print(missing_days)
+```
+
+La serie no presenta días faltantes, lo que indica una consistencia temporal completa en los datos.
+
+---
+
+## Análisis Descriptivo del Conjunto de Datos
+
+### Análisis Univariado
+
+#### Resumen del precio spot.
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+# Tabla de resumen del precio
+df %>%
+  select(PRECIO) %>%
+  summary() %>%
+  kable() %>%
+  kable_styling(full_width = FALSE)
+```
+
+#### Distribución del precio spot
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+# Calcula la media
+media_precio <- mean(df$PRECIO, na.rm = TRUE)
+
+# Calcula la densidad máxima para ajustar la posición del texto
+densidad_maxima <- max(density(df$PRECIO, na.rm = TRUE)$y)
+
+df %>%
+  ggplot(aes(x = PRECIO)) +
+  geom_histogram(aes(y = after_stat(density)), bins = 30, 
+                 fill = "steelblue", color = "white", alpha = 0.6) +
+  geom_density(color = "darkorange", size = 1.2) +
+  geom_vline(aes(xintercept = mean(PRECIO, na.rm = TRUE)),
+             color = "red", linetype = "dotted", size = 1) +
+  annotate("text", x = media_precio, y = densidad_maxima * 0.95, 
+           label = paste("Media: ", round(media_precio, 2)), 
+           color = "black", size = 4, hjust = -0.1) +  # Ajusta la posición del texto
+  labs(
+    title = "Histograma de Precio Spot (COP/kWh)",
+    subtitle = "Con densidad y línea de media",
+    y = "Densidad",
+    x = "Precio spot",
+    fill = "Frecuencia"
+  ) +
+  theme_minimal(base_size = 12) + 
+  scale_x_continuous(breaks = seq(0, max(df$PRECIO, na.rm = TRUE), by = 250), expand = c(0, 0)) +
+  scale_y_continuous(expand = c(0.01, 0)) +
+  theme(
+    #axis.line = element_line(color = "black"),
+    panel.grid = element_blank(),
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5)
+  )
+
+```
+
+#### Resumen de generación por fuente
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+df %>% 
+  select(TERMICA:SOLAR:EOLICA) %>% 
+  summary() %>% 
+  kable() %>% 
+  kable_styling(full_width = FALSE)
+
+```
+
+#### Histogramas de generación por fuente
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+# Histogramas de variables de generación
+df %>%
+  select(TERMICA, HIDRAULICA, SOLAR, COGENERADOR, EOLICA) %>%
+  pivot_longer(cols = everything(), names_to = "variable", values_to = "valor") %>%
+  ggplot(aes(x = valor)) +
+  geom_histogram(bins = 50, fill = "#1f77b4", color = "white") +
+  facet_wrap(~ variable, scales = "free", ncol = 3) +
+  scale_x_continuous(labels = scales::label_number(accuracy = 1)) +
+  labs(
+    title = "Distribución de fuentes de generación",
+    x = "Valor",
+    y = "Frecuencia"
+  ) +
+  theme_minimal()
+
+
+```
+
+#### Resumen de consumo de combustible por fuente
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+df %>% 
+  select(FUEL_CONS_ACPM, FUEL_CONS_CARBON, FUEL_CONS_COMBUSTOLEO, FUEL_CONS_CRUDO, FUEL_CONS_GAS, FUEL_CONS_GAS_NI, FUEL_CONS_GLP) %>% 
+  summary() %>% 
+  kable() %>% 
+  kable_styling(full_width = FALSE)
+```
+
+#### Histogramas de consumo de combustible por fuente
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+df %>%
+  select(FUEL_CONS_ACPM, FUEL_CONS_CARBON, FUEL_CONS_COMBUSTOLEO, FUEL_CONS_CRUDO, FUEL_CONS_GAS, FUEL_CONS_GAS_NI, FUEL_CONS_GLP) %>%
+  pivot_longer(cols = everything(), names_to = "variable", values_to = "valor") %>%
+  ggplot(aes(x = valor)) +
+  geom_histogram(bins = 50, fill = "steelblue", color = "white") +
+  facet_wrap(~ variable, scales = "free", ncol = 3) +
+  scale_x_continuous(labels = scales::label_number(accuracy = 1)) +
+  labs(
+    title = "Distribución de consumo de combustible",
+    x = "Valor",
+    y = "Frecuencia"
+  ) +
+  theme_minimal()
+
+```
+
+#### Resumen de costo de combustible por fuente
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+# Tabla de resumen del costo de combustible
+df %>%
+  select(FUEL_COST_CARBON, FUEL_COST_GAS, FUEL_COST_GAS_NI, FUEL_COST_COMBUSTOLEO) %>%
+  summary() %>%
+  kable() %>%
+  kable_styling(full_width = FALSE)
+
+```
+
+#### Histogramas de costo de combustible por fuente
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+# Histogramas del costo de combustible
+df %>%
+  select(FUEL_COST_CARBON, FUEL_COST_GAS, FUEL_COST_GAS_NI, FUEL_COST_COMBUSTOLEO) %>%
+  pivot_longer(cols = everything(), names_to = "variable", values_to = "valor") %>%
+  ggplot(aes(x = valor)) +
+  geom_histogram(bins = 50, fill = "steelblue", color = "white") +
+  facet_wrap(~ variable, scales = "free", ncol = 2) +
+  scale_x_continuous(labels = scales::label_number(accuracy = 1)) +
+  labs(
+    title = "Distribución del costo de combustible",
+    x = "Valor",
+    y = "Frecuencia"
+  ) +
+  theme_minimal()
+
+```
+
+#### Resumen de las variaciones del IPC por mes y año
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+# Tabla de resumen del IPC
+df %>%
+  select(IPC_VAR_MOM_PCT, IPC_VAR_YOY_PCT) %>%
+  summary() %>%
+  kable() %>%
+  kable_styling(full_width = FALSE)
+
+```
+
+#### Histogramas de las variaciones del IPC por mes y año
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+# Histogramas de variaciones del IPC
+df %>%
+  select(IPC_VAR_MOM_PCT, IPC_VAR_YOY_PCT) %>%
+  pivot_longer(cols = everything(), names_to = "variable", values_to = "valor") %>%
+  ggplot(aes(x = valor)) +
+  geom_histogram(bins = 50, fill = "steelblue", color = "white") +
+  facet_wrap(~ variable, scales = "free", ncol = 2) +
+  scale_x_continuous(labels = scales::label_number(accuracy = 1)) +
+  labs(
+    title = "Distribución de la variación del IPC",
+    x = "Porcentaje",
+    y = "Frecuencia"
+  ) +
+  theme_minimal()
+
+```
+
+#### Resumen de las variaciones del IPP por mes y año
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+# Tabla de resumen del IPP
+df %>%
+  select(IPP_VAR_PN_MOM_PCT, IPP_VAR_OI_MOM_PCT, IPP_VAR_PN_YOY_PCT, IPP_VAR_OI_YOY_PCT) %>%
+  summary() %>%
+  kable() %>%
+  kable_styling(full_width = FALSE)
+
+```
+
+#### Histogramas de las variaciones del IPC por mes y año
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+# Histogramas del IPP
+df %>%
+  select(IPP_VAR_PN_MOM_PCT, IPP_VAR_OI_MOM_PCT, IPP_VAR_PN_YOY_PCT, IPP_VAR_OI_YOY_PCT) %>%
+  pivot_longer(cols = everything(), names_to = "variable", values_to = "valor") %>%
+  ggplot(aes(x = valor)) +
+  geom_histogram(bins = 50, fill = "steelblue", color = "white") +
+  facet_wrap(~ variable, scales = "free", ncol = 2) +
+  scale_x_continuous(labels = scales::label_number(accuracy = 1)) +
+  labs(
+    title = "Distribución de la variación del IPP",
+    x = "Porcentaje",
+    y = "Frecuencia"
+  ) +
+  theme_minimal()
+
+```
+
+#### Distribución del nivel ENSO
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+df %>%
+  ggplot(aes(x = NIVEL_ENSO)) +
+  geom_histogram(bins = 50, fill = "steelblue", color = "white") +
+  coord_flip() +
+  scale_x_continuous(labels = scales::label_number(accuracy = 1)) +
+  labs(
+    title = "Distribución del nivel ENSO",
+    x = "Nivel ENSO",
+    y = "Frecuencia"
+  ) +
+  theme_minimal()
+
+
+```
+
+---
+
+### Análisis multivariado
+
+#### Correlación de todas las variables
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, fig.width=8, fig.height=8}
+
+# Seleccionar solo variables numéricas (eliminar todas las columnas no numéricas)
+numeric_df <- df %>%
+  select(where(is.numeric)) %>%  # seleccionar solo numéricas
+  select(-DIA) %>%               # omitir
+  drop_na()
+
+# Graficar matriz de correlación (triángulo superior) con coeficientes visibles
+ggcorr(numeric_df,
+       label = TRUE,
+       label_color = "black",
+       label_size = 3.0,
+       low = "steelblue",
+       mid = "ghostwhite",
+       high = "darkorange",
+       geom = "tile",
+       layout.exp = 0.5,
+       hjust = 1.0,     # mueve las etiquetas hacia la izquierda
+       size = 3,        # tamaño de texto de label de variables
+       color = "black"  # color de etiquetas de variable
+)
+
+```
+
+#### Correlación entre precio spot, hora, fuentes de generación y nivel ENSO
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+# Seleccionar las variables de interés y eliminar filas con valores NA
+temp_df <- df %>%
+  select(PRECIO, HORA, HIDRAULICA, TERMICA, SOLAR, EOLICA, COGENERADOR, NIVEL_ENSO) %>%
+  drop_na()
+
+# Visualizar la matriz de correlación
+ggcorr(
+  temp_df,
+  label = TRUE,
+  label_color = "black",
+  label_size = 3.0,
+  layout.exp = 1,
+  geom = "tile",
+  low = "steelblue",
+  mid = "white",
+  high = "darkorange",
+  label_round = 2,
+  hjust = 1.0,
+  size = 3,
+  color = "black"
+)
+
+```
+
+#### Correlación entre precio spot, hora, nivel ENSO, consumo y costo del combustible
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+# Seleccionar variables específicas y limpiar
+temp_df <- df %>%
+  select(PRECIO, HORA, NIVEL_ENSO,
+         FUEL_CONS_ACPM, FUEL_CONS_CARBON, FUEL_CONS_COMBUSTOLEO,
+         FUEL_CONS_CRUDO, FUEL_CONS_GAS, FUEL_CONS_GAS_NI,FUEL_CONS_GLP,
+         FUEL_COST_CARBON, FUEL_COST_GAS, FUEL_COST_GAS_NI, FUEL_COST_COMBUSTOLEO
+         ) %>%
+  drop_na()
+
+# Visualizar la matriz de correlación
+ggcorr(
+  temp_df,
+  label = TRUE,
+  label_color = "black",
+  label_size = 3.0,
+  layout.exp = 1,
+  geom = "tile",
+  low = "steelblue",
+  mid = "white",
+  high = "darkorange",
+  label_round = 2,
+  hjust = 1.0,
+  size = 3,
+  color = "black"
+)
+
+```
+
+#### Correlación entre precio spot, nivel ENSO, IPC e IPP 
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+# Seleccionar variables específicas y limpiar
+temp_df <- df %>%
+  select(PRECIO, NIVEL_ENSO,
+         IPC_VAR_MOM_PCT, IPC_VAR_YOY_PCT,
+         IPP_VAR_PN_MOM_PCT, IPP_VAR_OI_MOM_PCT,
+         IPP_VAR_PN_YOY_PCT, IPP_VAR_OI_YOY_PCT) %>%
+  drop_na()
+
+# Visualizar la matriz de correlación
+ggcorr(
+  temp_df,
+  label = TRUE,
+  label_color = "black",
+  label_size = 3.0,
+  layout.exp = 1,
+  geom = "tile",
+  low = "steelblue",
+  mid = "white",
+  high = "darkorange",
+  label_round = 2,
+  hjust = 1.0,
+  size = 3,
+  color = "black"
+)
+
+```
+
+#### Relación entre el precio y las fuentes de energía
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+# Transformar a formato largo
+df_long_temp <- df %>%
+  select(PRECIO, TERMICA, HIDRAULICA, SOLAR, COGENERADOR, EOLICA) %>%
+  pivot_longer(cols = -PRECIO, names_to = "Fuente", values_to = "Valor")
+
+# Gráfico de dispersión con facetas
+ggplot(df_long_temp, aes(x = Valor, y = PRECIO)) +
+  geom_point(color = "steelblue", alpha = 0.6) +
+  geom_smooth(method = "lm", se = FALSE, color = "darkorange") +
+  facet_wrap(~ Fuente, scales = "free_x") +
+  scale_x_continuous(labels = label_comma()) +
+  labs(
+    title = "Relación entre el Precio y las Fuentes de Energía",
+    x = "Generación por Fuente",
+    y = "Precio"
+  ) +
+  theme_minimal(base_size = 11) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    strip.text = element_text(face = "bold"),
+    plot.title = element_text(hjust = 0.5)
+  )
+
+```
+
+---
+
+### Análisis temporal
+
+#### Estacionalidad por hora y día de la semana
+
+#### Precio spot por hora del día
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+ggplot(df, aes(x = as.factor(HORA), y = PRECIO)) +
+  geom_boxplot(fill = "steelblue", color = "darkorange") +
+  labs(title = "Boxplot del Precio por Hora del Día",
+       x = "Hora",
+       y = "Precio") +
+  theme_minimal()
+
+```
+
+#### Precio spot por día de la semana
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+ggplot(df, aes(x = as.factor(DIA_SEMANA), y = PRECIO)) +
+  geom_boxplot(fill = "steelblue", color = "darkorange") +
+  labs(title = "Boxplot del Precio por Día",
+       x = "Hora",
+       y = "Precio") +
+  theme_minimal()
+
+```
+
+#### Precio spot por mes
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+ggplot(df, aes(x = MES, y = PRECIO)) +
+  geom_boxplot(fill = "steelblue", color = "darkorange") +
+  labs(title = "Boxplot del Precio por Mes",
+       x = "Mes",
+       y = "Precio") +
+  theme_minimal()
+
+```
+
+#### Generación solar por hora del día
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+ggplot(df, aes(x = as.factor(HORA), y = SOLAR)) +
+  geom_boxplot(fill = "steelblue", color = "darkorange") +
+  labs(title = "Boxplot de la Generación Solar por Hora del Día",
+       x = "Hora",
+       y = "Generación Solar (MW)") +
+  theme_minimal()
+
+
+```
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+# Dataframe con los calculos promedios diarios
+df_diario <- df %>%
+  group_by(FECHA) %>%
+  summarise(
+    precio_promedio = mean(PRECIO, na.rm = TRUE),
+    solar_promedio = mean(SOLAR, na.rm = TRUE),
+    termica_promedio = mean(TERMICA, na.rm = TRUE),
+    hidraulica_promedio = mean(HIDRAULICA, na.rm = TRUE),
+    cogenerador_promedio = mean(COGENERADOR, na.rm = TRUE),
+    eolica_promedio = mean(EOLICA, na.rm = TRUE)
+  ) %>%
+  ungroup()
+```
+
+#### Serie de tiempo del promedio diario del precio spot
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+ggplot(df_diario, aes(x = FECHA, y = precio_promedio)) +
+  geom_line(color = "steelblue") +
+  labs(title = "Serie de Tiempo del Precio Spot - Promedio Diario",
+       x = "Fecha",
+       y = "Precio promedio") +
+  theme_minimal()
+
+```
+
+#### Serie de tiempo del promedio diario de la generación solar
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+ggplot(df_diario, aes(x = FECHA, y = solar_promedio)) +
+  geom_line(color = "darkorange") +
+  labs(title = "Serie de Tiempo de Generación Solar - Promedio Diario",
+       x = "Fecha",
+       y = "Generación Solar (MW)") +
+  theme_minimal()
+
+```
+
+#### Relación entre precio spot y generación solar (promedio diario)
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+ggplot(df_diario, aes(x = FECHA)) +
+  geom_line(aes(y = precio_promedio, color = "Precio")) +
+  geom_line(aes(y = scale(solar_promedio) * sd(precio_promedio) + mean(precio_promedio),
+                color = "Solar (escalado)")) +
+  scale_color_manual(values = c("Precio" = "steelblue", "Solar (escalado)" = "darkorange")) +
+  labs(title = "Precio y Generación Solar Promedios Diarios",
+       x = "Fecha",
+       y = "Precio (y escala de Solar)") +
+  theme_minimal() +
+  theme(legend.title = element_blank())
+
+
+```
+
+#### Series de tiempo del promedio diario por cada fuente de generación
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+df_diario_largo <- df_diario %>%
+  select(FECHA, termica_promedio, hidraulica_promedio, solar_promedio,
+         cogenerador_promedio, eolica_promedio, precio_promedio) %>%
+  pivot_longer(cols = ends_with("_promedio") & !starts_with("precio"),
+               names_to = "fuente", values_to = "generacion")
+
+# Renombrar columnas para mejor presentación
+df_diario_largo$fuente <- gsub("_promedio", "", df_diario_largo$fuente)
+df_diario_largo$fuente <- toupper(df_diario_largo$fuente)
+
+
+ggplot(df_diario_largo, aes(x = FECHA, y = generacion, color = fuente)) +
+  geom_line(alpha = 0.8) +
+  labs(title = "Generación Promedio Diaria por Fuente",
+       x = "Fecha",
+       y = "Generación (MW)") +
+  theme_minimal()
+
+```
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+
+ggplot(df_diario_largo, aes(x = FECHA, y = generacion, fill = fuente)) +
+  geom_area(position = "fill", alpha = 0.6) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(title = "Distribución porcentual de generación por fuente",
+       x = "Fecha",
+       y = "Porcentaje",
+       fill = "Fuente") +
+  theme_minimal()
+```
+
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+# 7.1 Serie de líneas: IPC, IPP y PRECIO diario
+
+# 1. Agregar IPC, IPP y PRECIO al nivel diario
+df_macro <- df %>%
+  group_by(FECHA) %>%
+  summarise(
+    IPC_VAR_MOM_PCT       = mean(IPC_VAR_MOM_PCT,       na.rm = TRUE),
+    IPC_VAR_YOY_PCT       = mean(IPC_VAR_YOY_PCT,       na.rm = TRUE),
+    IPP_VAR_PN_MOM_PCT    = mean(IPP_VAR_PN_MOM_PCT,    na.rm = TRUE),
+    IPP_VAR_OI_MOM_PCT    = mean(IPP_VAR_OI_MOM_PCT,    na.rm = TRUE),
+    IPP_VAR_PN_YOY_PCT    = mean(IPP_VAR_PN_YOY_PCT,    na.rm = TRUE),
+    IPP_VAR_OI_YOY_PCT    = mean(IPP_VAR_OI_YOY_PCT,    na.rm = TRUE)
+  ) %>%
+  ungroup()
+
+# 2. Poner en formato largo para graficar
+df_macro_long <- df_macro %>%
+  pivot_longer(
+    cols = -FECHA,
+    names_to  = "variable",
+    values_to = "valor"
+  )
+
+# 3. Gráfico de líneas
+ggplot(df_macro_long, aes(x = FECHA, y = valor, color = variable)) +
+  geom_line() +
+  scale_color_manual(values = c(
+    "IPC_VAR_MOM_PCT"     = "darkorange",
+    "IPC_VAR_YOY_PCT"     = "darkorange4",
+    "IPP_VAR_PN_MOM_PCT"  = "forestgreen",
+    "IPP_VAR_OI_MOM_PCT"  = "green4",
+    "IPP_VAR_PN_YOY_PCT"  = "purple",
+    "IPP_VAR_OI_YOY_PCT"  = "purple4"
+  )) +
+  labs(
+    title = "Evolución diaria: Precio, IPC e IPP",
+    x = "Fecha",
+    y = "Valor",
+    color = NULL
+  ) +
+  theme_minimal()
+
+
+# 7.2 Línea o barras de costos de combustible vs PRECIO
+
+# 1. Agregar costos y precio al nivel diario
+df_costos <- df %>%
+  group_by(FECHA) %>%
+  summarise(
+    precio_promedio        = mean(PRECIO,                  na.rm = TRUE),
+    carbon_cost_promedio   = mean(FUEL_COST_CARBON,       na.rm = TRUE),
+    gas_cost_promedio      = mean(FUEL_COST_GAS,          na.rm = TRUE),
+    gas_ni_cost_promedio   = mean(FUEL_COST_GAS_NI,       na.rm = TRUE),
+    diesel_cost_promedio   = mean(FUEL_COST_COMBUSTOLEO,  na.rm = TRUE)
+  ) %>%
+  ungroup()
+
+# 2a. Gráfico de líneas
+df_costos_long <- df_costos %>%
+  pivot_longer(
+    cols = -FECHA,
+    names_to  = "variable",
+    values_to = "valor"
+  )
+
+ggplot(df_costos_long, aes(x = FECHA, y = valor, color = variable)) +
+  geom_line(size = 1) +
+  scale_color_manual(values = c(
+    "precio_promedio"      = "steelblue",
+    "carbon_cost_promedio" = "darkorange",
+    "gas_cost_promedio"    = "darkorange4",
+    "gas_ni_cost_promedio" = "forestgreen",
+    "diesel_cost_promedio" = "purple"
+  )) +
+  labs(
+    title = "Evolución diaria de Costos de Combustible vs Precio",
+    x = "Fecha",
+    y = "Valor (COP o %)”",
+    color = NULL
+  ) +
+  theme_minimal()
+
+
+
+```
+
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+ggplot(df, aes(x = FECHA_HORA, y = PRECIO, color = NIVEL_ENSO)) +
+  geom_point(alpha = 0.7) +
+  scale_color_gradient2(
+    low    = "steelblue",
+    mid    = "white",
+    high   = "darkorange",
+    midpoint = 0
+  ) +
+  labs(
+    title = "Precio Spot coloreado según Nivel ENSO",
+    x     = "Fecha y Hora",
+    y     = "PRECIO (COP/kWh)",
+    color = "Nivel ENSO"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+```
+
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+# 1. Crear categoría ENSO
+df2 <- df %>%
+  mutate(ENSO_CAT = case_when(
+    NIVEL_ENSO <= -1 ~ "La Niña",
+    NIVEL_ENSO >=  1 ~ "El Niño",
+    TRUE              ~ "Neutro"
+  ))
+
+# 2. Boxplot de precio por categoría
+ggplot(df2, aes(x = ENSO_CAT, y = PRECIO, fill = ENSO_CAT)) +
+  geom_boxplot(color = "darkorange") +
+  scale_fill_manual(values = c(
+    "La Niña" = "steelblue",
+    "Neutro"  = "grey80",
+    "El Niño" = "darkorange"
+  )) +
+  labs(
+    title = "Distribución del Precio según categoría ENSO",
+    x     = "Categoría ENSO",
+    y     = "PRECIO (COP/kWh)",
+    fill  = ""
+  ) +
+  theme_minimal()
+
+```
+
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+# 1. Crear lags en el DF diario
+df_lags <- df_diario %>%
+  arrange(FECHA) %>%
+  mutate(
+    solar_lag1 = lag(solar_promedio, 1),
+    precio_lag1 = lag(precio_promedio, 1)
+  ) %>%
+  filter(!is.na(solar_lag1), !is.na(precio_lag1))
+
+# 2. Scatter: Precio actual vs Solar del día anterior
+ggplot(df_lags, aes(x = solar_lag1, y = precio_promedio)) +
+  geom_point(color = "steelblue", alpha = 0.7) +
+  geom_smooth(method = "lm", color = "darkorange", se = FALSE) +
+  labs(
+    title = "Precio diario vs. Generación solar del día anterior",
+    x = "Solar promedio día anterior (MW)",
+    y = "Precio promedio actual (COP/kWh)"
+  ) +
+  theme_minimal()
+
+# 3. Serie de tiempo: Solar lag1 y Precio
+df_time_lag <- df_lags %>%
+  select(FECHA, precio_promedio, solar_lag1) %>%
+  pivot_longer(-FECHA, names_to = "variable", values_to = "valor")
+
+ggplot(df_time_lag, aes(x = FECHA, y = valor, color = variable)) +
+  geom_line(size = 1) +
+  scale_color_manual(values = c(
+    "precio_promedio" = "steelblue",
+    "solar_lag1"      = "darkorange"
+  )) +
+  labs(
+    title = "Serie diaria: Precio actual y Generación solar (lag 1 día)",
+    x = "Fecha",
+    y = "Valor",
+    color = ""
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+```
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+```
+
+---
+
+### Impacto de variables macroeconómicas
+
+
+#### IPC e IPP vs precio
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+df %>% 
+  pivot_longer(cols = starts_with(c("IPC_VAR", "IPP_VAR")),
+               names_to = "macro_var", values_to = "valor") %>% 
+  ggplot(aes(x = valor, y = PRECIO)) +
+  geom_point(alpha = 0.3) +
+  facet_wrap(~ macro_var, scales = "free_x") +
+  labs(
+    title = "Precio Spot vs Variación IPC/IPP",
+    x = "Valor variable macro",
+    y = "Precio (COP/kWh)"
+  )
+
+```
+
+### Estadísticas descriptivas del conjunto de datos
+
+#### Precio promedio por hora
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+df %>%
+  group_by(HORA) %>%
+  summarise(PRECIO_MEDIO = mean(PRECIO, na.rm = TRUE)) %>%
+  ggplot(aes(x = HORA, y = PRECIO_MEDIO)) +
+  geom_line(color = "steelblue") +
+  labs(title = "Precio promedio por hora", y = "Precio", x = "Hora del día")
+```
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+df %>%
+  group_by(MES) %>%
+  summarise(
+    PRECIO_PROM = mean(PRECIO, na.rm = TRUE),
+    IPC_MOM = first(IPC_VAR_MOM_PCT)
+  )
+
+```
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+df %>%
+  group_by(MES) %>%
+  summarise(
+    PRECIO_PROM = mean(PRECIO, na.rm = TRUE),
+    IPC_MOM = first(IPC_VAR_MOM_PCT)
+  ) %>%
+  mutate(MES_NUM = as.numeric(MES)) %>%
+  ggplot(aes(x = MES_NUM)) +
+  geom_line(aes(y = PRECIO_PROM, color = "Precio")) +
+  geom_line(aes(y = IPC_MOM * 100, color = "IPC (x100)")) +
+  scale_x_continuous(breaks = 1:12, labels = month.abb) +
+  labs(title = "Precio vs IPC mensual", y = "Valor", x = "Mes") +
+  scale_color_manual(values = c("Precio" = "darkred", "IPC (x100)" = "darkgreen"))
+
+
+```
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+df %>%
+  select(PRECIO, TERMICA, HIDRAULICA, SOLAR, IPC_VAR_MOM_PCT, IPP_VAR_PN_MOM_PCT) %>%
+  cor(use = "complete.obs") %>%
+  round(2)
+
+```
+
+
+#### Variación mensual del precio (% respecto al mes anterior)
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+df %>%
+  mutate(
+    MES = month(FECHA_HORA, label = TRUE, abbr = TRUE),
+    MES_NUM = month(FECHA_HORA)
+  ) %>%
+  group_by(MES, MES_NUM) %>%
+  summarise(PRECIO_PROM = mean(PRECIO, na.rm = TRUE), .groups = "drop") %>%
+  arrange(MES_NUM) %>%
+  mutate(VAR_PRECIO_PCT = (PRECIO_PROM - lag(PRECIO_PROM)) / lag(PRECIO_PROM) * 100) %>%
+  ggplot(aes(x = MES, y = VAR_PRECIO_PCT)) +
+  geom_col(fill = "steelblue") +
+  labs(title = "Variación porcentual mensual del precio", x = "Mes", y = "% Variación") +
+  theme_minimal()
+
+
+
+```
+
+#### Comparar el precio real con un precio ajustado por IPC
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+df %>%
+  mutate(MES = format(FECHA, "%b"),
+         MES_NUM = as.integer(format(FECHA, "%m"))) %>%
+  arrange(FECHA) %>%
+  mutate(IPC_FACTOR = cumprod(1 + IPC_VAR_MOM_PCT)) %>%
+  group_by(MES, MES_NUM) %>%
+  summarise(
+    PRECIO_REAL = mean(PRECIO, na.rm = TRUE),
+    IPC_FACTOR = last(IPC_FACTOR)
+  ) %>%
+  mutate(PRECIO_AJUSTADO = PRECIO_REAL / IPC_FACTOR) %>%
+  ggplot(aes(x = reorder(MES, MES_NUM))) +
+  geom_line(aes(y = PRECIO_REAL, color = "Precio Real")) +
+  geom_line(aes(y = PRECIO_AJUSTADO, color = "Precio Ajustado IPC")) +
+  labs(title = "Precio Real vs Precio Ajustado por IPC",
+       x = "Mes", y = "Precio",
+       color = "Leyenda") +
+  scale_color_manual(values = c("Precio Real" = "darkblue", "Precio Ajustado IPC" = "orange")) +
+  theme_minimal()
+
+```
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+```
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+```
+
+
+#### Relación entre IPC y PRECIO (diagrama de dispersión)
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+df %>%
+  ggplot(aes(x = IPC_VAR_MOM_PCT, y = PRECIO)) +
+  geom_point(size = 3, color = "darkred") +
+  geom_smooth(method = "lm", se = FALSE, color = "black", linetype = "dashed") +
+  labs(title = "Relación entre IPC mensual y Precio",
+       x = "IPC mensual", y = "Precio")
+
+```
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
 
 ```
