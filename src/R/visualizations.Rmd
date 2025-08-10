@@ -61,7 +61,8 @@ df <- df %>%
     MES = month(FECHA_HORA, label = TRUE),
     DIA = day(FECHA_HORA),
     HORA = hour(FECHA_HORA),
-    DIA_SEMANA = wday(FECHA_HORA, label = TRUE, abbr = FALSE)
+    DIA_SEMANA = wday(FECHA_HORA, label = TRUE, abbr = FALSE),
+    YEAR = format(as.Date(FECHA), "%Y")
   )
 
 # Datos
@@ -69,6 +70,19 @@ cat("Dataset structure: ")
 
 glimpse(df)           # tipos y primeras muestras
 skim(df)              # resumen estadístico rápido
+```
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, fig.width=8, fig.height=6}
+
+# Colores definidos
+colores_fuentes <- c(
+  "SOLAR" = "goldenrod1",
+  "TERMICA" = "firebrick3",
+  "HIDRAULICA" = "dodgerblue3",
+  "EOLICA" = "darkgreen",
+  "COGENERADOR" = "mediumorchid3"
+)
+
 ```
 
 ### Detección de valores faltantes
@@ -503,12 +517,16 @@ ggcorr(
 
 #### Relación entre el precio y las fuentes de energía
 
-```{r, warning=FALSE, message=FALSE, echo=FALSE, fig.width=9, fig.height=6}
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
 
 # Transformar a formato largo
 df_long_temp <- df %>%
   select(PRECIO, TERMICA, HIDRAULICA, SOLAR, COGENERADOR, EOLICA) %>%
   pivot_longer(cols = -PRECIO, names_to = "Fuente", values_to = "Valor")
+
+```
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, fig.width=9, fig.height=6}
 
 # Gráfico de dispersión con facetas
 ggplot(df_long_temp, aes(x = Valor, y = PRECIO)) +
@@ -683,6 +701,45 @@ ggplot(df, aes(x = as.factor(HORA), y = PRECIO)) +
 
 ```
 
+#### Precio spot por año y hora del día
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, fig.width=12, fig.height=10}
+
+ggplot(df, aes(x = as.factor(HORA), y = PRECIO, fill = as.factor(YEAR))) +
+  geom_boxplot(width=1,outlier.size = 1, alpha = 0.9) +
+  labs(
+    title = "Boxplot del Precio por Año y Hora del Día",
+    x = "Hora",
+    y = "Precio ($/kWh)",
+    fill = "Año"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 11),
+     legend.position = "bottom"
+  )
+
+```
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, fig.width=12, fig.height=10}
+
+ggplot(df, aes(x = as.factor(HORA), y = PRECIO, fill = as.factor(YEAR))) +
+  geom_boxplot() +
+  labs(
+    title = "Boxplot del Precio por Hora del Día (separado por año)",
+    x = "Hora",
+    y = "Precio ($/kWh)",
+    fill = "Año"
+  ) +
+  facet_wrap(~ YEAR, ncol = 3) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 11),
+    legend.position = "none"
+  )
+
+```
+
 #### Precio spot por día de la semana
 
 ```{r, warning=FALSE, message=FALSE, echo=FALSE, fig.width=9, fig.height=6}
@@ -695,6 +752,26 @@ ggplot(df, aes(x = as.factor(DIA_SEMANA), y = PRECIO)) +
   theme_minimal() +
   theme(
     plot.title = element_text(hjust = 0.5, size = 11)
+  )
+
+```
+
+#### Precio spot por año y día de la semana
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, fig.width=12, fig.height=10}
+
+ggplot(df, aes(x = as.factor(DIA_SEMANA), y = PRECIO, fill = as.factor(YEAR))) +
+  geom_boxplot(width=1,outlier.size = 1, alpha = 0.9) +
+  labs(
+    title = "Boxplot del Precio por Año y Día de la Semana",
+    x = "Hora",
+    y = "Precio ($/kWh)",
+    fill = "Año"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 11),
+     legend.position = "bottom"
   )
 
 ```
@@ -715,6 +792,26 @@ ggplot(df, aes(x = MES, y = PRECIO)) +
 
 ```
 
+#### Precio spot por año y mes
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, fig.width=12, fig.height=10}
+
+ggplot(df, aes(x = as.factor(MES), y = PRECIO, fill = as.factor(YEAR))) +
+  geom_boxplot(width=1,outlier.size = 1, alpha = 0.9) +
+  labs(
+    title = "Boxplot del Precio por Año y Mes",
+    x = "Hora",
+    y = "Precio ($/kWh)",
+    fill = "Año"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 11),
+     legend.position = "bottom"
+  )
+
+```
+
 #### Generación solar por hora del día
 
 ```{r, warning=FALSE, message=FALSE, echo=FALSE, fig.width=9, fig.height=6}
@@ -729,8 +826,82 @@ ggplot(df, aes(x = as.factor(HORA), y = SOLAR)) +
     plot.title = element_text(hjust = 0.5, size = 11)
   )
 
+```
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+# Pasar a formato largo
+df_long_temp_hora_fuentes <- df %>%
+  select(HORA, SOLAR, TERMICA, HIDRAULICA, COGENERADOR, EOLICA) %>%
+  pivot_longer(
+    cols = c(SOLAR, TERMICA, HIDRAULICA, COGENERADOR, EOLICA),
+    names_to = "Fuente",
+    values_to = "Generacion"
+    
+  )
+```
+
+#### Aporte de generación por hora
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, fig.width=9, fig.height=6}
+
+ggplot(df_long_temp_hora_fuentes, aes(x = as.factor(HORA), y = Generacion, fill = Fuente)) +
+  geom_bar(stat = "identity", position = "fill") +
+  scale_fill_manual(values = colores_fuentes) +
+  scale_y_continuous(labels = scales::percent) +  # Mostrar en %
+  labs(
+    title = "Proporción del aporte de generación por hora",
+    x = "Hora del día",
+    y = "Proporción (%)",
+    fill = "Fuente"
+  ) +
+  theme_minimal(base_size = 11) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 11)
+  )
 
 ```
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, fig.width=12, fig.height=8}
+
+# Calcular promedio por hora y año
+df_long_year <- df %>%
+  group_by(YEAR, HORA) %>%
+  summarise(
+    SOLAR = mean(SOLAR, na.rm = TRUE),
+    TERMICA = mean(TERMICA, na.rm = TRUE),
+    HIDRAULICA = mean(HIDRAULICA, na.rm = TRUE),
+    COGENERADOR = mean(COGENERADOR, na.rm = TRUE),
+    EOLICA = mean(EOLICA, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  pivot_longer(
+    cols = c(SOLAR, TERMICA, HIDRAULICA, COGENERADOR, EOLICA),
+    names_to = "Fuente",
+    values_to = "Generacion"
+  )
+
+ggplot(df_long_year, aes(x = as.factor(HORA), y = Generacion, fill = Fuente)) +
+  geom_bar(stat = "identity", position = "fill") +
+  scale_fill_manual(values = colores_fuentes) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(
+    title = "Proporción del aporte de generación por hora y año",
+    x = "Hora del día",
+    y = "Proporción (%)",
+    fill = "Fuente"
+  ) +
+  facet_wrap(~ YEAR, ncol = 3) +  # 2 filas x 3 columnas
+  theme_minimal(base_size = 11) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 11),
+    axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 1),
+    strip.text = element_text(size = 10)
+  )
+
+```
+
+#### Serie de tiempo del promedio diario del precio spot
 
 ```{r, warning=FALSE, message=FALSE, echo=FALSE}
 # Dataframe con los calculos promedios diarios
@@ -747,7 +918,6 @@ df_diario <- df %>%
   ungroup()
 ```
 
-#### Serie de tiempo del promedio diario del precio spot
 
 ```{r, warning=FALSE, message=FALSE, echo=FALSE, fig.width=8, fig.height=5}
 
@@ -763,22 +933,6 @@ ggplot(df_diario, aes(x = FECHA, y = precio_promedio)) +
 
 ```
 
-#### Serie de tiempo del promedio diario de la generación solar
-
-```{r, warning=FALSE, message=FALSE, echo=FALSE, fig.width=8, fig.height=5}
-
-ggplot(df_diario, aes(x = FECHA, y = solar_promedio)) +
-  geom_line(color = "darkorange") +
-  labs(title = "Serie de Tiempo de Generación Solar - Promedio Diario",
-       x = "Fecha",
-       y = "Generación Solar (kWh)") +
-  theme_minimal() +
-  theme(
-    plot.title = element_text(hjust = 0.5, size = 11)
-  )
-
-```
-
 #### Relación entre precio spot y generación solar (promedio diario)
 
 ```{r, warning=FALSE, message=FALSE, echo=FALSE, fig.width=8, fig.height=5}
@@ -787,10 +941,50 @@ ggplot(df_diario, aes(x = FECHA)) +
   geom_line(aes(y = precio_promedio, color = "Precio")) +
   geom_line(aes(y = scale(solar_promedio) * sd(precio_promedio) + mean(precio_promedio),
                 color = "Solar (escalado)")) +
-  scale_color_manual(values = c("Precio" = "steelblue", "Solar (escalado)" = "darkorange")) +
+  scale_color_manual(values = c("Precio" = "steelblue", "Solar (escalado)" = "goldenrod1")) +
   labs(title = "Precio y Generación Solar Promedios Diarios",
        x = "Fecha",
        y = "Precio $kWh (y escala de Solar)") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 11),
+    legend.title = element_blank()
+  )
+
+```
+
+#### Relación entre precio spot y generación hidráulica (promedio diario)
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, fig.width=8, fig.height=5}
+
+ggplot(df_diario, aes(x = FECHA)) +
+  geom_line(aes(y = precio_promedio, color = "Precio")) +
+  geom_line(aes(y = scale(hidraulica_promedio) * sd(precio_promedio) + mean(precio_promedio),
+                color = "Hidráulica (escalado)")) +
+  scale_color_manual(values = c("Precio" = "black", "Hidráulica (escalado)" = "dodgerblue3")) +
+  labs(title = "Precio y Generación Hidráulica Promedios Diarios",
+       x = "Fecha",
+       y = "Precio $kWh (y escala de Hidráulica)") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 11),
+    legend.title = element_blank()
+  )
+
+```
+
+#### Relación entre precio spot y generación térmica (promedio diario)
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, fig.width=8, fig.height=5}
+
+ggplot(df_diario, aes(x = FECHA)) +
+  geom_line(aes(y = precio_promedio, color = "Precio")) +
+  geom_line(aes(y = scale(termica_promedio) * sd(precio_promedio) + mean(precio_promedio),
+                color = "Térmica (escalado)")) +
+  scale_color_manual(values = c("Precio" = "steelblue", "Térmica (escalado)" = "firebrick3")) +
+  labs(title = "Precio y Generación Térmica Promedios Diarios",
+       x = "Fecha",
+       y = "Precio $kWh (y escala de Térmica)") +
   theme_minimal() +
   theme(
     plot.title = element_text(hjust = 0.5, size = 11),
@@ -816,9 +1010,11 @@ df_diario_largo$fuente <- toupper(df_diario_largo$fuente)
 
 ggplot(df_diario_largo, aes(x = FECHA, y = generacion, color = fuente)) +
   geom_line(alpha = 0.8) +
+  scale_color_manual(values = colores_fuentes) +
   labs(title = "Generación Promedio Diaria por Fuente",
        x = "Fecha",
-       y = "Generación (kWh)") +
+       y = "Generación (kWh)",
+       color = "Fuente") +
   theme_minimal() +
   theme(
     plot.title = element_text(hjust = 0.5, size = 11)
@@ -830,11 +1026,14 @@ ggplot(df_diario_largo, aes(x = FECHA, y = generacion, color = fuente)) +
 
 ggplot(df_diario_largo, aes(x = FECHA, y = generacion, fill = fuente)) +
   geom_area(position = "fill", alpha = 0.6) +
+  scale_fill_manual(values = colores_fuentes) +  # Aplicar tu paleta aquí
   scale_y_continuous(labels = scales::percent) +
-  labs(title = "Distribución porcentual de generación por fuente",
-       x = "Fecha",
-       y = "Porcentaje",
-       fill = "Fuente") +
+  labs(
+    title = "Distribución porcentual de generación por fuente",
+    x = "Fecha",
+    y = "Porcentaje",
+    fill = "Fuente"
+  ) +
   theme_minimal() +
   theme(
     plot.title = element_text(hjust = 0.5, size = 11)
@@ -984,55 +1183,11 @@ ggplot(df2, aes(x = ENSO_CAT, y = PRECIO, fill = ENSO_CAT)) +
 
 ```
 
-
-```{r, warning=FALSE, message=FALSE, echo=FALSE, fig.width=8, fig.height=5}
-
-# 1. Crear lags en el DF diario
-df_lags <- df_diario %>%
-  arrange(FECHA) %>%
-  mutate(
-    solar_lag1 = lag(solar_promedio, 1),
-    precio_lag1 = lag(precio_promedio, 1)
-  ) %>%
-  filter(!is.na(solar_lag1), !is.na(precio_lag1))
-
-# 2. Scatter: Precio actual vs Solar del día anterior
-ggplot(df_lags, aes(x = solar_lag1, y = precio_promedio)) +
-  geom_point(color = "steelblue", alpha = 0.7) +
-  geom_smooth(method = "lm", color = "darkorange", se = FALSE) +
-  labs(
-    title = "Precio diario vs. Generación solar del día anterior",
-    x = "Solar promedio día anterior (kWh)",
-    y = "Precio promedio actual ($/kWh)"
-  ) +
-  theme_minimal()
-
-# 3. Serie de tiempo: Solar lag1 y Precio
-df_time_lag <- df_lags %>%
-  select(FECHA, precio_promedio, solar_lag1) %>%
-  pivot_longer(-FECHA, names_to = "variable", values_to = "valor")
-
-ggplot(df_time_lag, aes(x = FECHA, y = valor, color = variable)) +
-  geom_line(size = 1) +
-  scale_color_manual(values = c(
-    "precio_promedio" = "steelblue",
-    "solar_lag1"      = "darkorange"
-  )) +
-  labs(
-    title = "Serie diaria: Precio actual y Generación solar (lag 1 día)",
-    x = "Fecha",
-    y = "Valor",
-    color = ""
-  ) +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
-```
-
 ---
 
 ### Impacto de variables macroeconómicas
 
+#### Relación entre precio spot y el IPC (mensual)
 
 ```{r, warning=FALSE, message=FALSE, echo=FALSE, fig.width=8, fig.height=5}
 
@@ -1055,13 +1210,131 @@ df %>%
     title = "Precio vs IPC mensual", 
     y = "Valor", 
     x = "Mes", 
-    color = "Leyenda"
+    color = "Serie"
   ) +
   scale_color_manual(values = c("Precio" = "steelblue", "IPC (x100)" = "darkorange")) +  # Colores especificados
   theme_minimal(base_size = 11) +
   theme(
     plot.title = element_text(hjust = 0.5, size = 11)
   )
+
+```
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, fig.width=12, fig.height=8}
+
+df %>%
+  group_by(AÑO = year(FECHA), MES) %>%  # Agrupar por año y mes
+  summarise(
+    PRECIO_PROM = mean(PRECIO, na.rm = TRUE),
+    IPC_MOM = first(IPC_VAR_MOM_PCT)
+  ) %>%
+  mutate(MES_NUM = as.numeric(MES)) %>%
+  ggplot(aes(x = MES_NUM)) +
+  # Línea para PRECIO
+  geom_line(aes(y = PRECIO_PROM, color = "Precio"), size = 1.2) +
+  geom_point(aes(y = PRECIO_PROM, color = "Precio"), size = 3) +  # Puntos sobre la línea de precio
+  # Línea para IPC (multiplicado por 100)
+  geom_line(aes(y = IPC_MOM * 100, color = "IPC (x100)"), size = 1.2) +
+  geom_point(aes(y = IPC_MOM * 100, color = "IPC (x100)"), size = 3) +  # Puntos sobre la línea del IPC
+  scale_x_continuous(breaks = 1:12, labels = month.abb) +  # Abreviaturas de los meses
+  labs(
+    title = "Precio vs IPC mensual", 
+    y = "Valor", 
+    x = "Mes", 
+    color = "Serie"
+  ) +
+  scale_color_manual(values = c("Precio" = "steelblue", "IPC (x100)" = "darkorange")) +  # Colores especificados
+  theme_minimal(base_size = 11) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 11),
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 45, hjust = 1) 
+  ) +
+  facet_wrap(~ AÑO, nrow = 2, ncol = 3)
+
+```
+
+#### Relación entre precio spot y el IPP (mensual)
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, fig.width=8, fig.height=5}
+
+df %>%
+  group_by(MES) %>%
+  summarise(
+    PRECIO_PROM = mean(PRECIO, na.rm = TRUE),
+    IPP_PN_MOM = first(IPP_VAR_PN_MOM_PCT),
+    IPP_OI_MOM = first(IPP_VAR_OI_MOM_PCT),
+  ) %>%
+  mutate(MES_NUM = as.numeric(MES)) %>%
+  ggplot(aes(x = MES_NUM)) +
+  # Línea para PRECIO
+  geom_line(aes(y = PRECIO_PROM, color = "Precio"), size = 1.2) +
+  geom_point(aes(y = PRECIO_PROM, color = "Precio"), size = 3) +
+  # Línea para IPP Producción Nacional (x100)
+  geom_line(aes(y = IPP_PN_MOM * 100, color = "IPP Producción Nacional (x100)"), size = 1.2) +
+  geom_point(aes(y = IPP_PN_MOM * 100, color = "IPP Producción Nacional (x100)"), size = 3) +
+  # Línea para IPP Oferta Interna (x100)
+  geom_line(aes(y = IPP_OI_MOM * 100, color = "IPP Oferta Interna (x100)"), size = 1.2) +
+  geom_point(aes(y = IPP_OI_MOM * 100, color = "IPP Oferta Interna (x100)"), size = 3) +
+  scale_x_continuous(breaks = 1:12, labels = month.abb) +
+  labs(
+    title = "Precio vs IPP Producción Nacional y Oferta Interna Mensual",
+    y = "Valor",
+    x = "Mes",
+    color = "Serie"
+  ) +
+  scale_color_manual(values = c(
+    "Precio" = "steelblue",
+    "IPP Producción Nacional (x100)" = "darkorange",
+    "IPP Oferta Interna (x100)" = "gray80"
+  )) +
+  theme_minimal(base_size = 11) +
+  theme(
+    legend.position = "bottom",
+    plot.title = element_text(hjust = 0.5, size = 11)
+  )
+
+```
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, fig.width=12, fig.height=8}
+
+df %>%
+  group_by(AÑO = year(FECHA), MES) %>%  # Agrupar por año y mes
+  summarise(
+    PRECIO_PROM = mean(PRECIO, na.rm = TRUE),
+    IPP_PN_MOM = first(IPP_VAR_PN_MOM_PCT),
+    IPP_OI_MOM = first(IPP_VAR_OI_MOM_PCT)
+  ) %>%
+  mutate(MES_NUM = as.numeric(MES)) %>%
+  ggplot(aes(x = MES_NUM)) +
+  # Línea para PRECIO
+  geom_line(aes(y = PRECIO_PROM, color = "Precio"), size = 1.2) +
+  geom_point(aes(y = PRECIO_PROM, color = "Precio"), size = 3) +
+  # Línea para IPP Producción Nacional (x100)
+  geom_line(aes(y = IPP_PN_MOM * 100, color = "IPP Producción Nacional (x100)"), size = 1.2) +
+  geom_point(aes(y = IPP_PN_MOM * 100, color = "IPP Producción Nacional (x100)"), size = 3) +
+  # Línea para IPP Oferta Interna (x100)
+  geom_line(aes(y = IPP_OI_MOM * 100, color = "IPP Oferta Interna (x100)"), size = 1.2) +
+  geom_point(aes(y = IPP_OI_MOM * 100, color = "IPP Oferta Interna (x100)"), size = 3) +
+  scale_x_continuous(breaks = 1:12, labels = month.abb) +  # Abreviaturas de los meses
+  labs(
+    title = "Precio vs IPP Producción Nacional y Oferta Interna Mensual",
+    y = "Valor",
+    x = "Mes",
+    color = "Serie"
+  ) +
+  scale_color_manual(values = c(
+    "Precio" = "steelblue",
+    "IPP Producción Nacional (x100)" = "darkorange",
+    "IPP Oferta Interna (x100)" = "gray80"
+  )) +
+  theme_minimal(base_size = 11) +
+  theme(
+    legend.position = "bottom",  # Coloca la leyenda abajo
+    plot.title = element_text(hjust = 0.5, size = 11),
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Etiquetas del eje X en diagonal
+  ) +
+  facet_wrap(~ AÑO, nrow = 2, ncol = 3)  # Grilla de 2x3
 
 
 ```
@@ -1091,6 +1364,32 @@ df %>%
 
 ```
 
+```{r, warning=FALSE, message=FALSE, echo=FALSE, fig.width=12, fig.height=8}
+
+df %>%
+  mutate(
+    AÑO = year(FECHA_HORA),  # Añadimos la columna del año
+    MES = month(FECHA_HORA, label = TRUE, abbr = TRUE),
+    MES_NUM = month(FECHA_HORA)
+  ) %>%
+  group_by(AÑO, MES, MES_NUM) %>%  # Agrupamos por año y mes
+  summarise(PRECIO_PROM = mean(PRECIO, na.rm = TRUE), .groups = "drop") %>%
+  arrange(AÑO, MES_NUM) %>%
+  mutate(VAR_PRECIO_PCT = (PRECIO_PROM - lag(PRECIO_PROM)) / lag(PRECIO_PROM) * 100) %>%
+  ggplot(aes(x = MES, y = VAR_PRECIO_PCT, fill = ifelse(VAR_PRECIO_PCT > 0, "steelblue", "darkorange"))) +
+  geom_col() +
+  labs(title = "Variación porcentual mensual del precio", x = "Mes", y = "% Variación") +
+  scale_fill_identity() +  # Usamos los colores directamente desde el 'fill' calculado
+  theme_minimal(base_size = 11) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 11),
+    legend.position = "none",
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Etiquetas del eje X en diagonal
+  ) +
+  facet_wrap(~ AÑO, nrow = 2, ncol = 3)  # Grilla de 2x3
+
+
+```
 
 
 ```{r, warning=FALSE, message=FALSE, echo=FALSE, eval=FALSE}
