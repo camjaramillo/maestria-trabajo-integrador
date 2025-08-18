@@ -47,7 +47,7 @@ library(hexbin)
 ### Estructura
 
 ```{r, warning=FALSE, message=FALSE, echo=FALSE}
-df <- read.csv("../../data/out/dataset_gen_spot_exog.csv")
+df <- read.csv("../../data/out/dataset_preprocessed.csv")
 
 # Convert FECHA_HORA to timestamp (POSIXct)
 df$FECHA_HORA <- as.POSIXct(df$FECHA_HORA, format = "%Y-%m-%d %H:%M:%S")
