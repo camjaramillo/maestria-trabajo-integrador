@@ -19,78 +19,78 @@ GENERATION_CANDIDATES = ["TERMICA", "HIDRAULICA", "SOLAR", "COGENERADOR", "EOLIC
 
 VARIANT_DEFS: List[Dict[str, Any]] = [
     # 1. df original (sin modificaciones)
-    {"name": "v1_original",
-     "description": "All variables from the dataset, no modifications",
-     "add_calendar": False},
-    {"name": "v1_original_lags",
-     "description": "All variables + 24 lags of PRECIO",
-     "add_calendar": False,
-     "add_lags": 24},
-
-    # 2. todas las variables + DIA_SEMANA y FESTIVO
-    {"name": "v2_with_calendar",
-     "description": "All variables + DIA_SEMANA and FESTIVO",
-     "add_calendar": True},
-    {"name": "v2_with_calendar_lags",
-     "description": "All variables + DIA_SEMANA and FESTIVO + 24 lags of PRECIO",
-     "add_calendar": True, "add_lags": 24},
-
-    # 3. todas las variables excepto SOLAR
-    {"name": "v3_no_solar",
-     "description": "All variables except SOLAR generation",
-     "drop_columns": ["SOLAR"]},
-    {"name": "v3_no_solar_lags",
-     "description": "All variables except SOLAR generation + 24 lags of PRECIO",
-     "drop_columns": ["SOLAR"], "add_lags": 24},
-
-    # 4. todas las variables excepto consumo de combustibles
-    {"name": "v4_no_fuel_consumption",
-     "description": "All variables except fuel consumption variables",
-     "drop_columns": [
-         "FUEL_CONS_ACPM", "FUEL_CONS_CARBON", "FUEL_CONS_COMBUSTOLEO",
-         "FUEL_CONS_CRUDO", "FUEL_CONS_GAS", "FUEL_CONS_GAS_NI", "FUEL_CONS_GLP"
-     ]},
-    {"name": "v4_no_fuel_consumption_lags",
-     "description": "All variables except fuel consumption variables + 24 lags of PRECIO",
-     "drop_columns": [
-         "FUEL_CONS_ACPM", "FUEL_CONS_CARBON", "FUEL_CONS_COMBUSTOLEO",
-         "FUEL_CONS_CRUDO", "FUEL_CONS_GAS", "FUEL_CONS_GAS_NI", "FUEL_CONS_GLP"
-     ], "add_lags": 24},
-
-    # 5. todas las variables excepto consumo y costos de combustibles
-    {"name": "v5_no_fuel_and_cost",
-     "description": "All variables except fuel consumption and cost variables",
-     "drop_columns": [
-         "FUEL_CONS_ACPM", "FUEL_CONS_CARBON", "FUEL_CONS_COMBUSTOLEO",
-         "FUEL_CONS_CRUDO", "FUEL_CONS_GAS", "FUEL_CONS_GAS_NI", "FUEL_CONS_GLP",
-         "FUEL_COST_CARBON", "FUEL_COST_GAS", "FUEL_COST_GAS_NI", "FUEL_COST_COMBUSTOLEO"
-     ]},
-    {"name": "v5_no_fuel_and_cost_lags",
-     "description": "All variables except fuel consumption and cost variables + 24 lags of PRECIO",
-     "drop_columns": [
-         "FUEL_CONS_ACPM", "FUEL_CONS_CARBON", "FUEL_CONS_COMBUSTOLEO",
-         "FUEL_CONS_CRUDO", "FUEL_CONS_GAS", "FUEL_CONS_GAS_NI", "FUEL_CONS_GLP",
-         "FUEL_COST_CARBON", "FUEL_COST_GAS", "FUEL_COST_GAS_NI", "FUEL_COST_COMBUSTOLEO"
-     ], "add_lags": 24},
-
-    # 6. todas las variables excepto indicadores económicos + consumo y costos de combustibles
-    {"name": "v6_no_econ_fuel_cost",
-     "description": "All variables except economic indicators, fuel consumption and cost variables",
-     "drop_columns": [
-         "FUEL_CONS_ACPM", "FUEL_CONS_CARBON", "FUEL_CONS_COMBUSTOLEO",
-         "FUEL_CONS_CRUDO", "FUEL_CONS_GAS", "FUEL_CONS_GAS_NI", "FUEL_CONS_GLP",
-         "FUEL_COST_CARBON", "FUEL_COST_GAS", "FUEL_COST_GAS_NI", "FUEL_COST_COMBUSTOLEO",
-         "IPC_VAR_MOM_PCT", "IPP_VAR_PN_MOM_PCT", "IPP_VAR_OI_MOM_PCT"
-     ]},
-    {"name": "v6_no_econ_fuel_cost_lags",
-     "description": "All variables except economic indicators, fuel consumption and cost variables + 24 lags of PRECIO",
-     "drop_columns": [
-         "FUEL_CONS_ACPM", "FUEL_CONS_CARBON", "FUEL_CONS_COMBUSTOLEO",
-         "FUEL_CONS_CRUDO", "FUEL_CONS_GAS", "FUEL_CONS_GAS_NI", "FUEL_CONS_GLP",
-         "FUEL_COST_CARBON", "FUEL_COST_GAS", "FUEL_COST_GAS_NI", "FUEL_COST_COMBUSTOLEO",
-         "IPC_VAR_MOM_PCT", "IPP_VAR_PN_MOM_PCT", "IPP_VAR_OI_MOM_PCT"
-     ], "add_lags": 24},
-
+    #{"name": "v1_original",
+    # "description": "All variables from the dataset, no modifications",
+    # "add_calendar": False},
+    #{"name": "v1_original_lags",
+    # "description": "All variables + 24 lags of PRECIO",
+    # "add_calendar": False,
+    # "add_lags": 24},
+#
+    ## 2. todas las variables + DIA_SEMANA y FESTIVO
+    #{"name": "v2_with_calendar",
+    # "description": "All variables + DIA_SEMANA and FESTIVO",
+    # "add_calendar": True},
+    #{"name": "v2_with_calendar_lags",
+    # "description": "All variables + DIA_SEMANA and FESTIVO + 24 lags of PRECIO",
+    # "add_calendar": True, "add_lags": 24},
+#
+    ## 3. todas las variables excepto SOLAR
+    #{"name": "v3_no_solar",
+    # "description": "All variables except SOLAR generation",
+    # "drop_columns": ["SOLAR"]},
+    #{"name": "v3_no_solar_lags",
+    # "description": "All variables except SOLAR generation + 24 lags of PRECIO",
+    # "drop_columns": ["SOLAR"], "add_lags": 24},
+#
+#  # 4. todas las variables excepto consumo de combustibles
+#  {"name": "v4_no_fuel_consumption",
+#   "description": "All variables except fuel consumption variables",
+#   "drop_columns": [
+#       "FUEL_CONS_ACPM", "FUEL_CONS_CARBON", "FUEL_CONS_COMBUSTOLEO",
+#       "FUEL_CONS_CRUDO", "FUEL_CONS_GAS", "FUEL_CONS_GAS_NI", "FUEL_CONS_GLP"
+#   ]},
+#  {"name": "v4_no_fuel_consumption_lags",
+#   "description": "All variables except fuel consumption variables + 24 lags of PRECIO",
+#   "drop_columns": [
+#       "FUEL_CONS_ACPM", "FUEL_CONS_CARBON", "FUEL_CONS_COMBUSTOLEO",
+#       "FUEL_CONS_CRUDO", "FUEL_CONS_GAS", "FUEL_CONS_GAS_NI", "FUEL_CONS_GLP"
+#   ], "add_lags": 24},
+#
+#  # 5. todas las variables excepto consumo y costos de combustibles
+#  {"name": "v5_no_fuel_and_cost",
+#   "description": "All variables except fuel consumption and cost variables",
+#   "drop_columns": [
+#       "FUEL_CONS_ACPM", "FUEL_CONS_CARBON", "FUEL_CONS_COMBUSTOLEO",
+#       "FUEL_CONS_CRUDO", "FUEL_CONS_GAS", "FUEL_CONS_GAS_NI", "FUEL_CONS_GLP",
+#       "FUEL_COST_CARBON", "FUEL_COST_GAS", "FUEL_COST_GAS_NI", "FUEL_COST_COMBUSTOLEO"
+#   ]},
+#  {"name": "v5_no_fuel_and_cost_lags",
+#   "description": "All variables except fuel consumption and cost variables + 24 lags of PRECIO",
+#   "drop_columns": [
+#       "FUEL_CONS_ACPM", "FUEL_CONS_CARBON", "FUEL_CONS_COMBUSTOLEO",
+#       "FUEL_CONS_CRUDO", "FUEL_CONS_GAS", "FUEL_CONS_GAS_NI", "FUEL_CONS_GLP",
+#       "FUEL_COST_CARBON", "FUEL_COST_GAS", "FUEL_COST_GAS_NI", "FUEL_COST_COMBUSTOLEO"
+#   ], "add_lags": 24},
+#
+#  # 6. todas las variables excepto indicadores económicos + consumo y costos de combustibles
+#  {"name": "v6_no_econ_fuel_cost",
+#   "description": "All variables except economic indicators, fuel consumption and cost variables",
+#   "drop_columns": [
+#       "FUEL_CONS_ACPM", "FUEL_CONS_CARBON", "FUEL_CONS_COMBUSTOLEO",
+#       "FUEL_CONS_CRUDO", "FUEL_CONS_GAS", "FUEL_CONS_GAS_NI", "FUEL_CONS_GLP",
+#       "FUEL_COST_CARBON", "FUEL_COST_GAS", "FUEL_COST_GAS_NI", "FUEL_COST_COMBUSTOLEO",
+#       "IPC_VAR_MOM_PCT", "IPP_VAR_PN_MOM_PCT", "IPP_VAR_OI_MOM_PCT"
+#   ]},
+#  {"name": "v6_no_econ_fuel_cost_lags",
+#   "description": "All variables except economic indicators, fuel consumption and cost variables + 24 lags of PRECIO",
+#   "drop_columns": [
+#       "FUEL_CONS_ACPM", "FUEL_CONS_CARBON", "FUEL_CONS_COMBUSTOLEO",
+#       "FUEL_CONS_CRUDO", "FUEL_CONS_GAS", "FUEL_CONS_GAS_NI", "FUEL_CONS_GLP",
+#       "FUEL_COST_CARBON", "FUEL_COST_GAS", "FUEL_COST_GAS_NI", "FUEL_COST_COMBUSTOLEO",
+#       "IPC_VAR_MOM_PCT", "IPP_VAR_PN_MOM_PCT", "IPP_VAR_OI_MOM_PCT"
+#   ], "add_lags": 24},
+#
     # 7. solo variables de generación + ENSO
     {"name": "v7_only_gen_enso",
      "description": "Only generation variables + ENSO",
