@@ -1184,7 +1184,6 @@ ggplot(df_costos_long, aes(x = FECHA, y = valor, color = variable)) +
 
 ```
 
-
 ```{r, warning=FALSE, message=FALSE, echo=FALSE, fig.width=8, fig.height=5}
 
 ggplot(df, aes(x = FECHA_HORA, y = PRECIO, color = NIVEL_ENSO)) +
