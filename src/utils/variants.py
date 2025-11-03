@@ -11,6 +11,9 @@ from typing import Any, Dict, List, Optional, Tuple
 from pathlib import Path
 import pandas as pd
 import numpy as np
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import StandardScaler
+
 
 # Known generation column candidates (common in the project)
 GENERATION_CANDIDATES = ["TERMICA", "HIDRAULICA", "SOLAR", "COGENERADOR", "EOLICA"]
@@ -325,3 +328,28 @@ def apply_variant(
 
     return df0, meta
 
+def prepare_variant_data_full(df, target_column='PRECIO', categorical_numeric=None):
+    """
+    Prepara X/y y el preprocessor usando TODO el dataset (sin split).
+    Esto se usa cuando entrenamos con el 100% del dataset y validamos en un dataset externo.
+    """
+    if categorical_numeric is None:
+        categorical_numeric = ["YEAR","MONTH","DAY","HORA","NIVEL_ENSO","DIA_SEMANA","FESTIVO"]
+
+    # Identificar numéricas
+    numeric_features = [
+        col for col in df.columns
+        if col not in categorical_numeric and col != target_column and col != 'FECHA_HORA'
+    ]
+
+    # Preprocesador: escala numéricas, deja pasar categóricas
+    preprocessor = ColumnTransformer([
+        ('num', StandardScaler(), numeric_features),
+        ('cat', 'passthrough', [c for c in categorical_numeric if c in df.columns])
+    ])
+
+    # Features y target
+    X = df.drop(columns=['FECHA_HORA', target_column], errors='ignore')
+    y = df[target_column]
+
+    return preprocessor, X, y
