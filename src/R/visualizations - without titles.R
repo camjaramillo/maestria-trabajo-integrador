@@ -59,6 +59,15 @@ colores_fuentes <- c(
   "COGENERADOR" = "mediumorchid3"
 )
 
+labels_meses <- c("Ene", "Feb", "Mar", "Abr", "May", "Jun",
+                  "Jul", "Ago", "Sep", "Oct", "Nov", "Dic")
+
+levels(df$MES) <- c("Ene","Feb","Mar","Abr","May","Jun",
+                    "Jul","Ago","Sep","Oct","Nov","Dic")
+
+
+
+
 ### Detección de valores faltantes
 
 # Detección de valores faltantes
@@ -150,7 +159,40 @@ df %>%
     #plot.subtitle = element_text(hjust = 0.5)
   )
 
-#### Resumen de generación por fuent
+p <- df %>%
+  ggplot(aes(x = PRECIO)) +
+  geom_histogram(aes(y = after_stat(density)), bins = 30, 
+                 fill = "steelblue", color = "white") +
+  geom_density(color = "darkorange", size = 1.2) +
+  geom_vline(aes(xintercept = mean(PRECIO, na.rm = TRUE)),
+             color = "red", linetype = "dotted", size = 1) +
+  annotate("text", x = media_precio, y = densidad_maxima * 0.95, 
+           label = paste("Media: ", round(media_precio, 2), " (COP)"), 
+           color = "black", size = 4, hjust = -0.1) +  # Ajusta la posición del texto
+  labs(
+    #title = "Histograma de Precio Spot ($/kWh)",
+    #subtitle = "Con densidad y línea de media",
+    y = "Densidad",
+    x = "Precio spot (COP/kWh)",
+    fill = "Frecuencia"
+  ) +
+  theme_minimal(base_size = 11) + 
+  scale_x_continuous(breaks = seq(0, max(df$PRECIO, na.rm = TRUE), by = 250), expand = c(0, 0)) +
+  scale_y_continuous(expand = c(0.01, 0)) +
+  theme(
+    axis.line = element_line(color = "black"),
+    panel.grid = element_blank(),
+    axis.title.x = element_text(size = 12, face = "bold"),  # Título eje X
+    axis.title.y = element_text(size = 12, face = "bold"),  # Título eje Y
+    axis.text.x = element_text(size = 10),                  # Etiquetas eje X
+    axis.text.y = element_text(size = 10),                  # Etiquetas eje Y
+    legend.title = element_text(size = 11, face = "bold"),  # Título de la leyenda
+    legend.text = element_text(size = 10),                  # Texto de la leyenda
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold")  # Título general
+  ) 
+ggsave("precio_spot_densidad.png", plot = p, dpi = 500, width = 10, height = 5)
+
+#### Resumen de generación por fuente
 
 df %>% 
   select(TERMICA:SOLAR:EOLICA) %>% 
@@ -175,7 +217,17 @@ df %>%
     y = "Frecuencia"
   ) +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  #theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  theme(
+    axis.title.x = element_text(size = 12, face = "bold"),  # Título eje X
+    axis.title.y = element_text(size = 12, face = "bold"),  # Título eje Y
+    axis.text.x = element_text(size = 10),                  # Etiquetas eje X
+    axis.text.y = element_text(size = 10),                  # Etiquetas eje Y
+    legend.title = element_text(size = 11, face = "bold"),  # Título de la leyenda
+    legend.text = element_text(size = 10),                  # Texto de la leyenda
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold")  # Título general
+  ) -> p
+  ggsave("hist_costo_combustible.png", plot = p, dpi = 500, width = 12, height = 6)
 
 
 #### Resumen de consumo de combustible por fuente
@@ -203,7 +255,16 @@ df %>%
     y = "Frecuencia"
   ) +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  theme(
+    axis.title.x = element_text(size = 12, face = "bold"),  # Título eje X
+    axis.title.y = element_text(size = 12, face = "bold"),  # Título eje Y
+    axis.text.x = element_text(size = 10),                  # Etiquetas eje X
+    axis.text.y = element_text(size = 10),                  # Etiquetas eje Y
+    legend.title = element_text(size = 11, face = "bold"),  # Título de la leyenda
+    legend.text = element_text(size = 10),                  # Texto de la leyenda
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold")  # Título general
+  ) -> p
+ggsave("hist_consumo_combustible.png", plot = p, dpi = 500, width = 12, height = 9)
 
 
 
@@ -322,17 +383,34 @@ df %>%
 
 #### Distribución del nivel ENSO
 
-df %>%
+p <- df %>%
   ggplot(aes(x = NIVEL_ENSO)) +
-  geom_histogram(binwidth = 0.5, fill = "steelblue", color = "white") +  # Ajusta binwidth según lo necesario
+  geom_histogram(binwidth = 0.5, fill = "steelblue", color = "white") +
   coord_flip() +
-  scale_x_continuous(labels = scales::label_number(accuracy = 1)) +
+  scale_x_continuous(
+    breaks = c(-4, -3, -2, -1, 0, 1, 2, 3, 4),
+    labels = c("Niña muy intensa (-4)", "Niña fuerte (-3)", "Niña discreta (-2)", "Niña leve (-1)",
+               "Sin fenómeno (0)",
+               "Niño leve (1)", "Niño discreto (2)", "Niño fuerte (3)", "Niño muy intenso (4)")
+  ) +
   labs(
-    #title = "Distribución del nivel ENSO",
     x = "Nivel ENSO",
     y = "Frecuencia"
   ) +
-  theme_minimal()
+  annotate("text", x = 4, y = max(table(df$NIVEL_ENSO)) * 0.9,
+           label = "Codificación ENSO:\nNiño (+1 a +4)\nNiña (–1 a –4)\nSin fenómeno (0)",
+           hjust = 1, size = 4, color = "black") +
+  theme_minimal() +
+  theme(
+    axis.title.x = element_text(size = 12, face = "bold"),
+    axis.title.y = element_text(size = 12, face = "bold"),
+    axis.text.x = element_text(size = 10),
+    axis.text.y = element_text(size = 10),
+    legend.title = element_text(size = 11, face = "bold"),
+    legend.text = element_text(size = 10),
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold")
+  )
+ggsave("histograma_enso.png", plot = p, dpi = 500, width = 10, height = 6)
 
 ### Análisis multivariado
 
@@ -358,7 +436,8 @@ ggcorr(numeric_df,
        hjust = 1.0,     # mueve las etiquetas hacia la izquierda
        size = 3,        # tamaño de texto de label de variables
        color = "black"  # color de etiquetas de variable
-)
+) -> m
+ggsave("corr_matrix.png", plot = m, dpi = 500, width = 8, height = 8)
 
 
 
@@ -465,14 +544,21 @@ ggplot(df_long_temp, aes(x = Valor, y = PRECIO)) +
   labs(
     #title = "Relación entre el Precio y las Fuentes de Energía",
     x = "Generación (kWh)",
-    y = "Precio spot ($/kWh)"
+    y = "Precio spot (COP/kWh)"
   ) +
   theme_minimal(base_size = 11) +
   theme(
-    axis.text.x = element_text(angle = 45, hjust = 1),
-    strip.text = element_text(face = "bold")
+    axis.title.x = element_text(size = 12, face = "bold"),
+    axis.title.y = element_text(size = 12, face = "bold"),  # Título eje Y
+    axis.text.x = element_text(size = 10, angle = 45, hjust = 1),
+    axis.text.y = element_text(size = 10),                  # Etiquetas eje Y
+    legend.title = element_text(size = 11, face = "bold"),  # Título de la leyenda
+    legend.text = element_text(size = 10),                  # Texto de la leyenda
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold")  # Título general
     #plot.title = element_text(hjust = 0.5)
-  )
+  ) -> p
+  ggsave("relacion_precio_generacion.png", plot = p, dpi = 500, width = 10, height = 6)
+
 
 #### Relación entre el precio y el IPC e IPP
 
@@ -540,15 +626,22 @@ df %>%
   geom_point(size = 3) +  # Agregar puntos en cada hora
   labs(
     #title = "Precio promedio por hora (por año)",
-       y = "Precio", x = "Hora del dia", color = "Anio") +  # El texto de la leyenda sigue igual
+       y = "Precio spot promedio (COP/kWh)", x = "Hora del día", color = "Año") +  # El texto de la leyenda sigue igual
   scale_x_continuous(
     breaks = seq(0, 23, by = 1), 
     labels = seq(0, 23, by = 1)
   ) +
   theme_minimal() +
   theme(
-    plot.title = element_text(hjust = 0.5, size = 11)
-  )
+    axis.title.x = element_text(size = 12, face = "bold"),  # Título eje X
+    axis.title.y = element_text(size = 12, face = "bold"),  # Título eje Y
+    axis.text.x = element_text(size = 10),                  # Etiquetas eje X
+    axis.text.y = element_text(size = 10),                  # Etiquetas eje Y
+    legend.title = element_text(size = 11, face = "bold"),  # Título de la leyenda
+    legend.text = element_text(size = 10),                  # Texto de la leyenda
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold")  # Título general
+  ) -> p
+ggsave("precio_spot_promedio_hora_año.png", plot = p, dpi = 500, width = 10, height = 5)
 
 #### Precio promedio por mes
 
@@ -578,7 +671,7 @@ df %>%
 
 #### Precio promedio por mes y año
 
-df %>%
+p <- df %>%
   mutate(
     AÑO = year(FECHA_HORA),  # Extraer el año
     MES_NUM = month(FECHA_HORA),  # Convertir mes a número para garantizar el orden
@@ -591,22 +684,29 @@ df %>%
   geom_point(aes(color = factor(AÑO)), size = 3) +  # Puntos sobre la línea, mismo color que la línea
   scale_x_continuous(
     breaks = 1:12,  # Mostrar los meses del 1 al 12
-    labels = month.abb  # Etiquetas con los nombres abreviados de los meses
+    labels = labels_meses  # Etiquetas con los nombres abreviados de los meses
   ) +
   labs(
     #title = "Precio promedio por mes (por año)",
-       y = "Precio", x = "Mes", color = "Año") +
+       y = "Precio spot promedio (COP/kWh)", x = "Mes", color = "Año") +
   theme_minimal(base_size = 11) +
   theme(
-    plot.title = element_text(hjust = 0.5, size = 11)
+    axis.title.x = element_text(size = 12, face = "bold"),  # Título eje X
+    axis.title.y = element_text(size = 12, face = "bold"),  # Título eje Y
+    axis.text.x = element_text(size = 10),                  # Etiquetas eje X
+    axis.text.y = element_text(size = 10),                  # Etiquetas eje Y
+    legend.title = element_text(size = 11, face = "bold"),  # Título de la leyenda
+    legend.text = element_text(size = 10),                  # Texto de la leyenda
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold")  # Título general
   )
+ggsave("precio_spot_promedio_por_año.png", plot = p, dpi = 500, width = 10, height = 5)
 
 
 
 #### Relación entre el precio promedio por hora del día y año
 
 
-df %>%
+p <- df %>%
   group_by(YEAR, HORA) %>%
   summarise(
     solar_prom = mean(SOLAR, na.rm = TRUE),
@@ -619,9 +719,18 @@ df %>%
     #title = "Mapa de calor del precio según hora y año",
     x = "Hora del día",
     y = "Año",
-    fill = "Precio Prom. (kWh)"
+    fill = "Precio spot promedio (COP/kWh)"
   ) +
-  theme_minimal(base_size = 11)
+  theme(
+    axis.title.x = element_text(size = 12, face = "bold"),  # Título eje X
+    axis.title.y = element_text(size = 12, face = "bold"),  # Título eje Y
+    axis.text.x = element_text(size = 10),                  # Etiquetas eje X
+    axis.text.y = element_text(size = 10),                  # Etiquetas eje Y
+    legend.title = element_text(size = 11, face = "bold"),  # Título de la leyenda
+    legend.text = element_text(size = 10),                  # Texto de la leyenda
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold")  # Título general
+  )
+ggsave("heatmap_precio_spot_hora.png", plot = p, dpi = 500, width = 10, height = 5)
 
 
 
@@ -652,12 +761,19 @@ df %>%
 ggplot(df, aes(x = as.factor(HORA), y = PRECIO)) +
   geom_boxplot(fill = "steelblue", color = "darkorange") +
   labs(#title = "Boxplot del Precio por Hora del Día",
-       x = "Hora",
-       y = "Precio ($/kWh)") +
+       x = "Hora del día",
+       y = "Precio spot (COP/kWh)") +
   theme_minimal() +
   theme(
-    plot.title = element_text(hjust = 0.5, size = 11)
-  )
+    axis.title.x = element_text(size = 12, face = "bold"),  # Título eje X
+    axis.title.y = element_text(size = 12, face = "bold"),  # Título eje Y
+    axis.text.x = element_text(size = 10),                  # Etiquetas eje X
+    axis.text.y = element_text(size = 10),                  # Etiquetas eje Y
+    legend.title = element_text(size = 11, face = "bold"),  # Título de la leyenda
+    legend.text = element_text(size = 10),                  # Texto de la leyenda
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold")  # Título general
+  ) -> p
+ggsave("boxplot_precio_spot_hora.png", plot = p, dpi = 500, width = 10, height = 5)
 
 
 
@@ -700,13 +816,19 @@ ggplot(df, aes(x = as.factor(HORA), y = PRECIO, fill = as.factor(YEAR))) +
 ggplot(df, aes(x = as.factor(DIA_SEMANA), y = PRECIO)) +
   geom_boxplot(fill = "steelblue", color = "darkorange") +
   labs(#title = "Boxplot del Precio por Día",
-       x = "Hora",
-       y = "Precio ($/kWh)") +
+       x = "Día de la semana",
+       y = "Precio spot (COP/kWh)") +
   theme_minimal() +
   theme(
-    plot.title = element_text(hjust = 0.5, size = 11)
-  )
-
+    axis.title.x = element_text(size = 12, face = "bold"),  # Título eje X
+    axis.title.y = element_text(size = 12, face = "bold"),  # Título eje Y
+    axis.text.x = element_text(size = 10),                  # Etiquetas eje X
+    axis.text.y = element_text(size = 10),                  # Etiquetas eje Y
+    legend.title = element_text(size = 11, face = "bold"),  # Título de la leyenda
+    legend.text = element_text(size = 10),                  # Texto de la leyenda
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold")  # Título general
+  ) -> p
+ggsave("boxplot_precio_spot_dia.png", plot = p, dpi = 500, width = 10, height = 5)
 
 
 #### Precio spot por año y día de la semana
@@ -733,11 +855,18 @@ ggplot(df, aes(x = MES, y = PRECIO)) +
   geom_boxplot(fill = "steelblue", color = "darkorange") +
   labs(#title = "Boxplot del Precio por Mes",
        x = "Mes",
-       y = "Precio ($/kWh)") +
+       y = "Precio spot (COP/kWh)") +
   theme_minimal() +
   theme(
-    plot.title = element_text(hjust = 0.5, size = 11)
-  )
+    axis.title.x = element_text(size = 12, face = "bold"),  # Título eje X
+    axis.title.y = element_text(size = 12, face = "bold"),  # Título eje Y
+    axis.text.x = element_text(size = 10),                  # Etiquetas eje X
+    axis.text.y = element_text(size = 10),                  # Etiquetas eje Y
+    legend.title = element_text(size = 11, face = "bold"),  # Título de la leyenda
+    legend.text = element_text(size = 10),                  # Texto de la leyenda
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold")  # Título general
+  ) -> p
+ggsave("precio_spot_boxplot_mes.png", plot = p, dpi = 500, width = 10, height = 5)
 
 
 
@@ -764,12 +893,19 @@ ggplot(df, aes(x = as.factor(MES), y = PRECIO, fill = as.factor(YEAR))) +
 ggplot(df, aes(x = as.factor(HORA), y = SOLAR)) +
   geom_boxplot(fill = "steelblue", color = "darkorange") +
   labs(#title = "Boxplot de la Generación Solar por Hora del Día",
-       x = "Hora",
+       x = "Hora del día",
        y = "Generación Solar (kWh)") +
   theme_minimal() +
   theme(
-    plot.title = element_text(hjust = 0.5, size = 11)
-  )
+    axis.title.x = element_text(size = 12, face = "bold"),  # Título eje X
+    axis.title.y = element_text(size = 12, face = "bold"),  # Título eje Y
+    axis.text.x = element_text(size = 10),                  # Etiquetas eje X
+    axis.text.y = element_text(size = 10),                  # Etiquetas eje Y
+    legend.title = element_text(size = 11, face = "bold"),  # Título de la leyenda
+    legend.text = element_text(size = 10),                  # Texto de la leyenda
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold")  # Título general
+  ) -> p
+  ggsave("boxplot_solar_por_hora.png", plot = p, dpi = 500, width = 10, height = 5)
 
 
 
@@ -855,23 +991,23 @@ ggplot(df_long_year, aes(x = as.factor(HORA), y = Generacion, fill = Fuente)) +
   labs(
     #title = "Proporción del aporte de generación por hora y año",
     x = "Hora del día",
-    y = "Proporción (%)",
+    y = "Proporción generación (%)",
     fill = "Fuente"
   ) +
   facet_wrap(~ YEAR, ncol = 3) +  # 2 filas x 3 columnas
   theme_minimal(base_size = 11) +
   theme(
-    plot.title = element_text(hjust = 0.5, size = 11),
-    axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 1),
-    axis.text.y = element_text(size=13),
-    axis.title.x = element_text(size = 13),
-    axis.title.y = element_text(size = 13),
-    strip.text = element_text(size = 13),
-    #legend.position = "top",                # Mueve la leyenda al top
-    #legend.text = element_text(size = 13),  # Aumenta el tamaño del texto de la leyenda
-    #legend.title = element_text(size = 13),  # Aumenta el tamaño del título de la leyenda ("Fuente")
-    legend.position = "none"  # Oculta la leyenda
-  )
+    axis.title.x = element_text(size = 12, face = "bold"),  # Título eje X
+    axis.title.y = element_text(size = 12, face = "bold"),  # Título eje Y
+    axis.text.x = element_text(size = 10),                  # Etiquetas eje X
+    axis.text.y = element_text(size = 10),                  # Etiquetas eje Y
+    legend.title = element_text(size = 11, face = "bold"),  # Título de la leyenda
+    legend.text = element_text(size = 10),                  # Texto de la leyenda
+    legend.position = "top",                # Mueve la leyenda al top
+    #legend.position = "none"  # Oculta la leyenda
+  ) -> p
+
+ggsave("grafico_generacion_por_año_doc.png", plot = p, dpi = 500, width = 12, height = 8)
 
 
 
@@ -896,11 +1032,18 @@ ggplot(df_diario, aes(x = FECHA, y = precio_promedio)) +
   geom_line(color = "steelblue") +
   labs(#title = "Serie de Tiempo del Precio Spot - Promedio Diario",
        x = "Fecha",
-       y = "Precio promedio ($/kWh)") +
+       y = "Precio spot promedio diario (COP/kWh)") +
   theme_minimal() +
   theme(
-    plot.title = element_text(hjust = 0.5, size = 11)
-  )
+    axis.title.x = element_text(size = 12, face = "bold"),  # Título eje X
+    axis.title.y = element_text(size = 12, face = "bold"),  # Título eje Y
+    axis.text.x = element_text(size = 10),                  # Etiquetas eje X
+    axis.text.y = element_text(size = 10),                  # Etiquetas eje Y
+    legend.title = element_text(size = 11, face = "bold"),  # Título de la leyenda
+    legend.text = element_text(size = 10),                  # Texto de la leyenda
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold")  # Título general
+  ) -> p
+ggsave("serie_temporal_precio_spot.png", plot = p, dpi = 500, width = 10, height = 5)
 
 
 
@@ -998,8 +1141,16 @@ ggplot(df_diario_largo, aes(x = FECHA, y = generacion, fill = fuente)) +
   ) +
   theme_minimal() +
   theme(
-    plot.title = element_text(hjust = 0.5, size = 11)
-  )
+    axis.title.x = element_text(size = 12, face = "bold"),  # Título eje X
+    axis.title.y = element_text(size = 12, face = "bold"),  # Título eje Y
+    axis.text.x = element_text(size = 10),                  # Etiquetas eje X
+    axis.text.y = element_text(size = 10),                  # Etiquetas eje Y
+    legend.title = element_text(size = 11, face = "bold"),  # Título de la leyenda
+    legend.text = element_text(size = 10),                  # Texto de la leyenda
+    legend.position = "top",
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold")  # Título general
+  ) -> p
+ggsave("generacion_porcentaje_participacion.png", plot = p, dpi = 500, width = 10, height = 6)
 
 
 # 7.1 Serie de líneas: IPC, IPP y PRECIO diario
@@ -1094,15 +1245,26 @@ ggplot(df, aes(x = FECHA_HORA, y = PRECIO, color = NIVEL_ENSO)) +
     midpoint = 0
   ) +
   labs(
-    #title = "Precio Spot coloreado según Nivel ENSO",
-    x     = "Fecha y Hora",
-    y     = "Precio ($/kWh)",
+    x     = "Año",
+    y     = "Precio spot (COP/kWh)",
     color = "Nivel ENSO"
   ) +
+  annotate("text", x = min(df$FECHA_HORA, na.rm = TRUE), 
+           y = max(df$PRECIO, na.rm = TRUE) * 0.95,
+           label = "Codificación ENSO:\nNiño (+1 a +4)\nNiña (–1 a –4)\nSin fenómeno (0)",
+           hjust = 0, size = 4, color = "black") +
   theme_minimal() +
   theme(
-    axis.text.x = element_text(angle = 45, hjust = 1)
-  )
+    axis.title.x = element_text(size = 12, face = "bold"),
+    axis.title.y = element_text(size = 12, face = "bold"),
+    axis.text.x = element_text(size = 10),
+    axis.text.y = element_text(size = 10),
+    legend.title = element_text(size = 11, face = "bold"),
+    legend.text = element_text(size = 10),
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold")
+  ) -> p
+  ggsave("precio_spot_enso_relacion.png", plot = p, dpi = 500, width = 10, height = 6)
+
 
 
 # 1. Crear categoría ENSO
@@ -1124,10 +1286,21 @@ ggplot(df2, aes(x = ENSO_CAT, y = PRECIO, fill = ENSO_CAT)) +
   labs(
     #title = "Distribución del Precio según categoría ENSO",
     x     = "Categoría ENSO",
-    y     = "Precio ($/kWh)",
+    y     = "Precio spot (COP/kWh)",
     fill  = ""
   ) +
-  theme_minimal()
+  theme_minimal() +
+  theme(
+    axis.title.x = element_text(size = 12, face = "bold"),  # Título eje X
+    axis.title.y = element_text(size = 12, face = "bold"),  # Título eje Y
+    axis.text.x = element_text(size = 10),                  # Etiquetas eje X
+    axis.text.y = element_text(size = 10),                  # Etiquetas eje Y
+    legend.title = element_text(size = 11, face = "bold"),  # Título de la leyenda
+    legend.text = element_text(size = 10),                  # Texto de la leyenda
+    #legend.position = "top",
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold")  # Título general
+  ) -> p
+  ggsave("boxplot_precio_spot_enso_relacion.png", plot = p, dpi = 500, width = 10, height = 6)
 
 
 ### Impacto de variables macroeconómicas
@@ -1139,28 +1312,36 @@ df %>%
   group_by(MES) %>%
   summarise(
     PRECIO_PROM = mean(PRECIO, na.rm = TRUE),
-    IPC_MOM = first(IPC_VAR_MOM_PCT)
+    IPC_MOM = mean(IPC_VAR_MOM_PCT, na.rm = TRUE)
+    #IPC_MOM = first(IPC_VAR_MOM_PCT)
   ) %>%
   mutate(MES_NUM = as.numeric(MES)) %>%
   ggplot(aes(x = MES_NUM)) +
   # Línea para PRECIO
-  geom_line(aes(y = PRECIO_PROM, color = "Precio"), size = 1.2) +
-  geom_point(aes(y = PRECIO_PROM, color = "Precio"), size = 3) +  # Puntos sobre la línea de precio
+  geom_line(aes(y = PRECIO_PROM, color = "Precio spot promedio"), size = 1.2) +
+  geom_point(aes(y = PRECIO_PROM, color = "Precio spot promedio"), size = 3) + # Puntos sobre la línea de precio
   # Línea para IPC (multiplicado por 100)
   geom_line(aes(y = IPC_MOM * 100, color = "IPC (x100)"), size = 1.2) +
   geom_point(aes(y = IPC_MOM * 100, color = "IPC (x100)"), size = 3) +  # Puntos sobre la línea del IPC
-  scale_x_continuous(breaks = 1:12, labels = month.abb) +  # Abreviaturas de los meses
+  scale_x_continuous(breaks = 1:12, labels = labels_meses) +  # Abreviaturas de los meses
   labs(
     #title = "Precio vs IPC mensual", 
-    y = "Valor", 
+    y = "Precio spot promedio (COP/kWh) e IPC promedio (x100)", 
     x = "Mes", 
     color = "Serie"
   ) +
-  scale_color_manual(values = c("Precio" = "steelblue", "IPC (x100)" = "darkorange")) +  # Colores especificados
+  scale_color_manual(values = c("Precio spot promedio" = "steelblue", "IPC (x100)" = "darkorange")) +  # Colores especificados
   theme_minimal(base_size = 11) +
   theme(
-    plot.title = element_text(hjust = 0.5, size = 11)
-  )
+    axis.title.x = element_text(size = 12, face = "bold"),  # Título eje X
+    axis.title.y = element_text(size = 12, face = "bold"),  # Título eje Y
+    axis.text.x = element_text(size = 10),                  # Etiquetas eje X
+    axis.text.y = element_text(size = 10),                  # Etiquetas eje Y
+    legend.title = element_text(size = 11, face = "bold"),  # Título de la leyenda
+    legend.text = element_text(size = 10),                  # Texto de la leyenda
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold")  # Título general
+  ) -> p
+  ggsave("ipc_precio_spot_promedio.png", plot = p, dpi = 500, width = 10, height = 5)
 
 
 df %>%
@@ -1202,37 +1383,49 @@ df %>%
   group_by(MES) %>%
   summarise(
     PRECIO_PROM = mean(PRECIO, na.rm = TRUE),
-    IPP_PN_MOM = first(IPP_VAR_PN_MOM_PCT),
-    IPP_OI_MOM = first(IPP_VAR_OI_MOM_PCT),
+    IPP_PN_MOM = mean(IPP_VAR_PN_MOM_PCT, na.rm = TRUE),
+    IPP_OI_MOM = mean(IPP_VAR_OI_MOM_PCT),
+    #IPP_PN_MOM = first(IPP_VAR_PN_MOM_PCT),
+    #IPP_OI_MOM = first(IPP_VAR_OI_MOM_PCT),
   ) %>%
   mutate(MES_NUM = as.numeric(MES)) %>%
   ggplot(aes(x = MES_NUM)) +
   # Línea para PRECIO
-  geom_line(aes(y = PRECIO_PROM, color = "Precio"), size = 1.2) +
-  geom_point(aes(y = PRECIO_PROM, color = "Precio"), size = 3) +
+  geom_line(aes(y = PRECIO_PROM, color = "Precio spot promedio"), size = 1.2) +
+  geom_point(aes(y = PRECIO_PROM, color = "Precio spot promedio"), size = 3) +
   # Línea para IPP Producción Nacional (x100)
-  geom_line(aes(y = IPP_PN_MOM * 100, color = "IPP Producción Nacional (x100)"), size = 1.2) +
-  geom_point(aes(y = IPP_PN_MOM * 100, color = "IPP Producción Nacional (x100)"), size = 3) +
+  geom_line(aes(y = IPP_PN_MOM * 100, color = "IPP Producción Nacional promedio (x100)"), size = 1.2) +
+  geom_point(aes(y = IPP_PN_MOM * 100, color = "IPP Producción Nacional promedio (x100)"), size = 3) +
   # Línea para IPP Oferta Interna (x100)
-  geom_line(aes(y = IPP_OI_MOM * 100, color = "IPP Oferta Interna (x100)"), size = 1.2) +
-  geom_point(aes(y = IPP_OI_MOM * 100, color = "IPP Oferta Interna (x100)"), size = 3) +
-  scale_x_continuous(breaks = 1:12, labels = month.abb) +
+  geom_line(aes(y = IPP_OI_MOM * 100, color = "IPP Oferta Interna promedio (x100)"), size = 1.2) +
+  geom_point(aes(y = IPP_OI_MOM * 100, color = "IPP Oferta Interna promedio (x100)"), size = 3) +
+  scale_x_continuous(breaks = 1:12, labels = labels_meses) +  # Abreviaturas de los meses
   labs(
     #title = "Precio vs IPP Producción Nacional y Oferta Interna Mensual",
-    y = "Valor",
+    y = "Precio spot promedio (COP/kWh) e IPP promedio (x100)",
     x = "Mes",
     color = "Serie"
   ) +
   scale_color_manual(values = c(
-    "Precio" = "steelblue",
-    "IPP Producción Nacional (x100)" = "darkorange",
-    "IPP Oferta Interna (x100)" = "gray80"
+    "Precio spot promedio" = "steelblue",
+    "IPP Producción Nacional promedio (x100)" = "darkorange",
+    "IPP Oferta Interna promedio (x100)" = "gray80"
   )) +
   theme_minimal(base_size = 11) +
   theme(
     legend.position = "bottom",
     plot.title = element_text(hjust = 0.5, size = 11)
-  )
+  ) +
+  theme(
+    axis.title.x = element_text(size = 12, face = "bold"),  # Título eje X
+    axis.title.y = element_text(size = 12, face = "bold"),  # Título eje Y
+    axis.text.x = element_text(size = 10),                  # Etiquetas eje X
+    axis.text.y = element_text(size = 10),                  # Etiquetas eje Y
+    legend.title = element_text(size = 11, face = "bold"),  # Título de la leyenda
+    legend.text = element_text(size = 10),                  # Texto de la leyenda
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold")  # Título general
+  ) -> p
+  ggsave("ipp_precio_spot_promedio.png", plot = p, dpi = 500, width = 10, height = 6)
 
 
 df %>%
